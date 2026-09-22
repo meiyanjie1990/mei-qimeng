@@ -630,7 +630,8 @@
     <div id="view-day" class="view" hidden></div>
     <div id="view-map" class="view" hidden></div>
   </div>
-  <div id="sync-status"></div>
+  <!-- 云同步未接入：状态行隐藏（显示"已同步/待同步"是对家长的虚假承诺），接入云同步时恢复 -->
+  <div id="sync-status" hidden></div>
   <button type="button" id="update-badge" hidden>点我更新</button>
   <script src="logic.js"></script>
   <script src="ui.js"></script>
@@ -641,31 +642,29 @@
       }
       var code = Logic.parseFamilyCode();
       if (!code) {
-        // 买家版必须从老师发来的带家庭码链接打开
+        // 买家版必须从老师发来的带家庭码链接打开（装到主屏后靠 mei-last-code 记忆，见 logic.js）
         Ui.showError("请用老师发来的链接打开（链接里带家庭码）");
         return;
       }
-      // 云同步状态行（右上角小标签）：已同步 = 本地打卡都推上去了；待同步 = 上次推送失败
-      function setSyncStatus(text) {
-        var el = document.getElementById("sync-status");
-        if (el) el.textContent = text;
-      }
       // 打卡后自动推远端：ui.js 里所有打卡都经 Logic.toggleDay / toggleWeek，
-      // 这里包一层，打卡后异步推（pushCheckins 自带 SHA 冲突重试；失败静默，下次打卡再试）
+      // 这里包一层，打卡后异步推（pushCheckins 自带 SHA 冲突重试；失败静默，下次打卡再试）。
+      // 云同步未接入：不显示同步状态（#sync-status 已隐藏），接入时在这里重新接线。
       (function () {
         var tDay = Logic.toggleDay, tWeek = Logic.toggleWeek;
         function afterToggle() {
-          Logic.pushCheckins(code, Logic.loadLocalCheckins(code))
-            .then(function (ok) { setSyncStatus(ok ? "已同步" : "待同步"); })
-            .catch(function () { setSyncStatus("待同步"); });
+          Logic.pushCheckins(code, Logic.loadLocalCheckins(code)).catch(function () {});
         }
         Logic.toggleDay = function (c, w, d) { var s = tDay(c, w, d); afterToggle(); return s; };
         Logic.toggleWeek = function (c, w, det) { var s = tWeek(c, w, det); afterToggle(); return s; };
       })();
-      Promise.all([Logic.loadRegistry(), Logic.loadOverlay(code), Logic.loadBase()])
+      // 启动不依赖 families.json（注册表只给教师端用）：只拉本家庭的覆盖层 + 基础内容，
+      // 两者都带缓存兜底（logic.js 网络优先→缓存→覆盖层没有就是 null），离线也能启动。
+      Promise.all([Logic.loadOverlay(code), Logic.loadBase()])
         .then(function (rs) {
-          var overlay = rs[1], base = rs[2];
+          var overlay = rs[0], base = rs[1];
           if (!overlay) { Ui.showError("没有这个家庭码，请和老师确认链接"); return; }
+          // 记住家庭码：主屏 PWA 打开不带 ?f=，下次启动从 mei-last-code 回退（只有拿到链接的人才会走到这里）
+          try { localStorage.setItem("mei-last-code", code); } catch (e) {}
           var content = Logic.mergeContent(base, overlay);
           var week = Logic.currentWeekNumber(overlay.startDate, new Date());
           var range = Logic.weekDateRange(overlay.startDate, week);
@@ -674,7 +673,6 @@
             .then(function (remote) { Logic.mergeRemoteCheckins(code, remote); })
             .catch(function () {})
             .then(function () {
-              setSyncStatus("已同步");
               Ui.initApp(content, { code: code, startDate: overlay.startDate, week: week, range: range });
             });
         })

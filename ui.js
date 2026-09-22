@@ -222,6 +222,10 @@
 
   // 组装买家版 App：三视图 + 打卡交互 + 手机返回键历史（同谦灵App 的做法）
   Ui.initApp = function (content, opts) {
+    // 页面标题：「娃名」的启蒙（Node 测试环境没有 document.title，跳过）
+    if (typeof document !== "undefined" && document.title !== undefined) {
+      document.title = (content.childName || "宝宝") + "的启蒙";
+    }
     var code = opts.code;
     var startDate = opts.startDate;
     var state = {

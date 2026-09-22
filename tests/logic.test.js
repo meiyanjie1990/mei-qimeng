@@ -92,6 +92,7 @@ test("mergeContent 主题替换拆包 emoji 并清空英文主题", () => {
 });
 
 test("parseFamilyCode 从链接取家庭码，无码或小写也能处理", () => {
+  global.localStorage = { getItem: () => null, setItem: () => {} }; // 没有记忆码时
   global.location = { search: "?f=K3F8QA" };
   assert.equal(Logic.parseFamilyCode(), "K3F8QA");
   global.location = { search: "" };
@@ -99,6 +100,48 @@ test("parseFamilyCode 从链接取家庭码，无码或小写也能处理", () =
   global.location = { search: "?f=k3f8qa" };
   assert.equal(Logic.parseFamilyCode(), "K3F8QA");
   delete global.location;
+  delete global.localStorage;
+});
+
+// —— 终审修复 B1：PWA 装到主屏后打开没有 ?f=，回退到记忆的家庭码 ——
+
+test("parseFamilyCode 无链接参数时回退到记忆的家庭码（mei-last-code）", () => {
+  const store = { "mei-last-code": "K3F8QA" };
+  global.localStorage = {
+    getItem: k => (k in store ? store[k] : null),
+    setItem: (k, v) => { store[k] = String(v); }
+  };
+  global.location = { search: "" };
+  assert.equal(Logic.parseFamilyCode(), "K3F8QA");
+  // ?f= 优先于记忆码；记忆码小写/带杂质也照常取
+  global.location = { search: "?f=Z9Q2XB" };
+  assert.equal(Logic.parseFamilyCode(), "Z9Q2XB");
+  store["mei-last-code"] = "k3f8qa";
+  global.location = { search: "" };
+  assert.equal(Logic.parseFamilyCode(), "K3F8QA");
+  delete global.location;
+  delete global.localStorage;
+});
+
+// —— 终审修复 B2：loadOverlay 网络优先 → 缓存兜底 → null（null=没有覆盖层文件，不抛错） ——
+
+test("loadOverlay 断网时走缓存兜底，缓存也没有返回 null", async () => {
+  global.fetch = () => { throw new Error("offline"); };
+  global.caches = {
+    open: async () => ({
+      match: async () => ({ ok: true, json: async () => ({ childName: "豆豆", startDate: "2026-10-05" }) })
+    })
+  };
+  const o = await Logic.loadOverlay("K3F8QA");
+  assert.equal(o.childName, "豆豆");
+  global.caches = { open: async () => ({ match: async () => undefined }) };
+  assert.equal(await Logic.loadOverlay("K3F8QA"), null);
+});
+
+test("loadOverlay 家庭文件不存在（404）返回 null 不抛错", async () => {
+  global.fetch = async () => ({ ok: false });
+  global.caches = { open: async () => ({ match: async () => undefined }) };
+  assert.equal(await Logic.loadOverlay("NOPE99"), null);
 });
 
 test("buildCheckinText 生成群打卡文案（复制打卡按钮用）", () => {

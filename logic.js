@@ -10,7 +10,7 @@
       if (r.ok) return await r.json();
     } catch (e) {}
     // 与 sw.js 的 CACHE_NAME 保持同一名字（改了 sw.js 这里也要跟着改）
-    const c = await caches.open("mei-qimeng-v3");
+    const c = await caches.open("mei-qimeng-v4");
     const cached = await c.match("base/content.json");
     if (cached) return await cached.json();
     throw new Error("content unavailable");
@@ -18,7 +18,15 @@
 
   Logic.parseFamilyCode = function () {
     const m = (location.search || "").match(/[?&]f=([A-Z0-9]{6})/i);
-    return m ? m[1].toUpperCase() : null;
+    if (m) return m[1].toUpperCase();
+    // PWA 装到主屏后打开不带 ?f=：回退到上次成功启动时记下的家庭码。
+    // 只有拿到老师链接的人才走得到「记下」这一步，安全口径不变。
+    try {
+      const saved = (typeof localStorage !== "undefined" && localStorage.getItem("mei-last-code")) || "";
+      const m2 = String(saved).match(/^[A-Z0-9]{6}$/i);
+      if (m2) return m2[0].toUpperCase();
+    } catch (e) {}
+    return null;
   };
 
   Logic.loadRegistry = async function () {
@@ -27,9 +35,19 @@
     return r.json();
   };
 
+  // 网络优先；断网或部署出问题时走缓存兜底（与 loadBase 同款）；
+  // 都没有 → null（null 是「没有这个家庭的覆盖层文件」的设计信号，不抛错）。
   Logic.loadOverlay = async function (code) {
-    const r = await fetch("families/" + code + ".json?ts=" + Date.now());
-    return r.ok ? r.json() : null;
+    try {
+      const r = await fetch("families/" + code + ".json?ts=" + Date.now());
+      if (r.ok) return await r.json();
+    } catch (e) {}
+    try {
+      const c = await caches.open("mei-qimeng-v4");
+      const cached = await c.match("families/" + code + ".json");
+      if (cached) return await cached.json();
+    } catch (e) {}
+    return null;
   };
 
   Logic.mergeContent = function (base, overlay) {
@@ -155,14 +173,14 @@
         const d = await r.json();
         const data = d.content ? JSON.parse(b64Decode(d.content)) : { families: {} };
         try {
-          const c = await caches.open("mei-qimeng-v3");
+          const c = await caches.open("mei-qimeng-v4");
           await c.put("checkins.json", JSON.stringify(data)); // 断网时兜底用
         } catch (e) {}
         return data;
       }
     } catch (e) {}
     try {
-      const c = await caches.open("mei-qimeng-v3");
+      const c = await caches.open("mei-qimeng-v4");
       const cached = await c.match("checkins.json");
       if (cached) return await cached.json();
     } catch (e) {}

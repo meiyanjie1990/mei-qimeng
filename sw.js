@@ -1,4 +1,4 @@
-var CACHE_NAME = "mei-qimeng-v3";
+var CACHE_NAME = "mei-qimeng-v4";
 var PRECACHE = [
   "./", "index.html", "logic.js", "ui.js", "base/content.json",
   "manifest.json", "version.json", "fonts/fonts.css",
@@ -23,12 +23,16 @@ self.addEventListener("activate", function (e) {
 
 self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET") return;
-  var pathname = new URL(e.request.url).pathname;
+  var url = new URL(e.request.url);
+  var pathname = url.pathname;
   var isFresh = pathname.endsWith("/content.json") || pathname.endsWith("/version.json");
-  if (isFresh) {
-    var cleanUrl = new URL(e.request.url);
-    cleanUrl.search = "";
-    var cleanReq = new Request(cleanUrl.href, { method: "GET" });
+  // 缓存键统一去掉 query：?ts= 每次都不一样，按原样缓存永远打不中（写进去读不出来）。
+  var cleanReq = url.search
+    ? new Request(url.origin + url.pathname, { method: "GET" })
+    : e.request;
+  if (isFresh || url.search) {
+    // 网络优先（content/version 和带 ?ts= 的动态数据，如家庭覆盖层）：
+    // 成功就按去掉 query 的键缓存，断网时从缓存兜底。
     e.respondWith(
       fetch(e.request).then(function (res) {
         if (res.ok) {
@@ -42,7 +46,7 @@ self.addEventListener("fetch", function (e) {
     );
     return;
   }
-  // 缓存优先；没缓存时联网取，并顺手存进缓存——
+  // 无 query 的静态资源：缓存优先；没缓存时联网取，并顺手存进缓存——
   // 字体的子集文件（fonts/*.woff2）是浏览器按需才下载的，
   // 不存的话每次打开都重下、断网就打不开字体
   e.respondWith(

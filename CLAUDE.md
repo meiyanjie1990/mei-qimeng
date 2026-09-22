@@ -1,6 +1,6 @@
 # Mei启蒙买家版App · 项目名片
 
-> 最后更新：2026-09-22｜页面版本 v3（version.json）｜缓存名 mei-qimeng-v3
+> 最后更新：2026-09-22｜页面版本 v4（version.json）｜缓存名 mei-qimeng-v4
 
 ## 项目概述
 
@@ -27,7 +27,7 @@
 | `families/<code>.json` | 家庭覆盖层：`{childName,startDate,overrides,themeSwaps,weeks}`（schema 与 logic.js mergeContent 对齐） |
 | `teacher.html` + `dash-logic.js` | 教师端面板：家庭卡片+红黄标记+近4周明细；纯逻辑在 dash-logic.js（UMD，可测） |
 | `tools/` | `make-family.js`（问卷JSON→覆盖层+家庭码+注册表）、`sync-content.js`、`gen-report.js`（周报）、`fetch-fonts.js`（字体子集）、`make-icons.py` |
-| `tests/` | node:test 46 条：logic / ui / sync / dashboard / tools |
+| `tests/` | node:test 53 条：logic / ui / sync / dashboard / tools / boot（index.html 启动链静态断言） |
 | `sw.js` / `version.json` / `manifest.json` | PWA 套件与版本（页面代码改动时三者同步 bump） |
 
 ## Mei 操作手册
@@ -49,10 +49,11 @@
 `node tools/gen-report.js [--family CODE]` → 按输出发私聊
 
 ### 发布规则
-1. `node --test` 全绿（Windows 若 spawn EPERM 就逐个 `node tests/x.test.js`）
-2. 页面代码改动 → version.json +1、sw.js CACHE_NAME 同步（v3→v4…）、logic.js 里三处缓存名同步
-3. push → `gh run list --repo meiyanjie1990/mei-qimeng` 看 workflow → `curl -s -o /dev/null -w "%{http_code}" https://meiyanjie1990.github.io/mei-qimeng/` 返回 200
-4. 纯内容更新（base/content.json、families/）不用动版本号
+1. 上线前设 teacherCode（默认已生成，想换就改 families.json 后 push）——教师端 `?t=<老师码>` 用它比对
+2. `node --test` 全绿（Windows 若 spawn EPERM 就逐个 `node tests/x.test.js`）
+3. 页面代码改动 → version.json +1、sw.js CACHE_NAME 同步（v4→v5…）、logic.js 里所有 mei-qimeng-v* 缓存名同步
+4. push → `gh run list --repo meiyanjie1990/mei-qimeng` 看 workflow → `curl -s -o /dev/null -w "%{http_code}" https://meiyanjie1990.github.io/mei-qimeng/` 返回 200
+5. 纯内容更新（base/content.json、families/）不用动版本号
 
 ### 隐私说明（对家长/对外口径）
 - 线上只有小名、家庭码、年龄、起始日、打卡天数——没有手机号、微信、真名、地址

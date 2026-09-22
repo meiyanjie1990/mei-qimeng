@@ -214,3 +214,14 @@ test("当天页活动日有「复制打卡」按钮，休息日没有", () => {
   Ui.renderDayPage(buyerContent(), Object.assign({}, base, { day: 3 }));
   assert.ok(!global.document.getElementById("view-day").innerHTML.includes("copy-checkin"));
 });
+
+// —— 终审修复 L1：initApp 设置页面标题「娃名」的启蒙 ——
+
+test("initApp 设置页面标题「{娃名}的启蒙」，无娃名回退「宝宝的启蒙」", () => {
+  const app = appStub();
+  global.document.title = ""; // 浏览器 document 才有 title；没设时（Node 桩）跳过
+  Ui.initApp(buyerContent(), { code: "K3F8QA", startDate: "2026-10-05", week: 2, range: RANGE });
+  assert.equal(global.document.title, "豆豆的启蒙");
+  Ui.initApp({ weeks: [] }, { code: "K3F8QA", startDate: "2026-10-05", week: 2, range: RANGE });
+  assert.equal(global.document.title, "宝宝的启蒙");
+});
