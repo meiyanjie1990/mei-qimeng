@@ -587,8 +587,8 @@
       }
       var code = Logic.parseFamilyCode();
       if (!code) {
-        // 无家庭码：先渲染占位（保持 Task 1 行为）
-        Logic.loadBase().then(c => Ui.renderWeekPage(c, {})).catch(e => Ui.showError("加载失败，请联网后重试"));
+        // 买家版必须从老师发来的带家庭码链接打开
+        Ui.showError("请用老师发来的链接打开（链接里带家庭码）");
         return;
       }
       Promise.all([Logic.loadRegistry(), Logic.loadOverlay(code), Logic.loadBase()])
@@ -598,7 +598,7 @@
           var content = Logic.mergeContent(base, overlay);
           var week = Logic.currentWeekNumber(overlay.startDate, new Date());
           var range = Logic.weekDateRange(overlay.startDate, week);
-          Ui.renderWeekPage(content, { week: week, range: range });
+          Ui.initApp(content, { code: code, startDate: overlay.startDate, week: week, range: range });
         })
         .catch(function () { Ui.showError("加载失败，请联网后重试"); });
     })();

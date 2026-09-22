@@ -44,3 +44,59 @@ test("mergeContent 覆盖层整周替换（年龄差距大的家庭）", () => {
   const merged = Logic.mergeContent(base, overlay);
   assert.deepEqual(merged.weeks[0], customWeek);
 });
+
+// —— Task 3: 买家端本地打卡 ——
+
+test("toggleDay 打卡/取消并落 localStorage", () => {
+  const store = {};
+  global.localStorage = {
+    getItem: k => store[k] ?? null,
+    setItem: (k, v) => { store[k] = v; }
+  };
+  let s = Logic.toggleDay("K3F8QA", 1, 1);
+  assert.deepEqual(s, { 1: [1] });
+  s = Logic.toggleDay("K3F8QA", 1, 1); // 再点取消
+  assert.deepEqual(s, { 1: [] });
+  s = Logic.toggleDay("K3F8QA", 2, 4);
+  assert.deepEqual(s, { 1: [], 2: [4] });
+});
+
+test("activityDays 活动日是 1/2/4/5，休息日 3/6/7 不打卡", () => {
+  const details = { days: [1,2,3,4,5,6,7].map(d => ({ day: d, rest: d % 3 === 0 || d > 5 })) };
+  assert.deepEqual(Logic.activityDays(details), [1, 2, 4, 5]);
+});
+
+test("toggleWeek 整周打卡只勾活动日，已满则全取消", () => {
+  const store = {};
+  global.localStorage = { getItem: k => store[k] ?? null, setItem: (k, v) => { store[k] = v; } };
+  const details = { days: [1,2,3,4,5,6,7].map(d => ({ day: d, rest: d % 3 === 0 || d > 5 })) };
+  let s = Logic.toggleWeek("K3F8QA", 1, details);
+  assert.deepEqual(s, { 1: [1, 2, 4, 5] });
+  s = Logic.toggleWeek("K3F8QA", 1, details);
+  assert.deepEqual(s, { 1: [] });
+});
+
+test("weekDateRange 按本地时间算日期范围（UTC 换算会少一天）", () => {
+  assert.deepEqual(Logic.weekDateRange("2026-10-05", 1), { start: "2026-10-05", end: "2026-10-11" });
+});
+
+test("mergeContent 主题替换拆包 emoji 并清空英文主题", () => {
+  const base = { version: 5, weeks: [
+    { week: 2, theme: "动物", themeEn: "Animals", emoji: "🐶", coreWords: [], coreSentences: [], detailed: true }
+  ]};
+  const overlay = { childName: "豆豆", startDate: "2026-10-05", themeSwaps: { "2": "🚗交通工具" } };
+  const merged = Logic.mergeContent(base, overlay);
+  assert.equal(merged.weeks[0].theme, "交通工具");
+  assert.equal(merged.weeks[0].emoji, "🚗");
+  assert.equal(merged.weeks[0].themeEn, "");
+});
+
+test("parseFamilyCode 从链接取家庭码，无码或小写也能处理", () => {
+  global.location = { search: "?f=K3F8QA" };
+  assert.equal(Logic.parseFamilyCode(), "K3F8QA");
+  global.location = { search: "" };
+  assert.equal(Logic.parseFamilyCode(), null);
+  global.location = { search: "?f=k3f8qa" };
+  assert.equal(Logic.parseFamilyCode(), "K3F8QA");
+  delete global.location;
+});
