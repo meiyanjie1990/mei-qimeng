@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F6F1E6">
+  <title>Mei启蒙·教师端</title>
+  <link rel="stylesheet" href="fonts/fonts.css">
+  <style>
+    /* ============================================================
+       教师端面板 —— 买家版同款暖色系（米白/深棕/橙 #E87D2F）
+       纯静态页：不注册 Service Worker、不读写 localStorage、
+       families.json / checkins.json 一律网络优先 + ?ts= 破缓存。
+       ============================================================ */
+    :root {
+      --paper: #F6F1E6;         /* 燕麦纸米白（买家版同款页底） */
+      --card: #FFFDF4;          /* 卡片米白 */
+      --ink: #4A3A24;           /* 深棕 */
+      --ink-2: #8C7A5F;         /* 次级棕 */
+      --accent: #E87D2F;        /* 橙 */
+      --accent-soft: #F9E6D4;   /* 橙纸 */
+      --red: #C8452B;           /* 掉队红 */
+      --yellow: #D9A021;        /* 关心黄 */
+      --line: #D8C9A6;          /* 缝线米棕 */
+      --kraft: #EFE2C8;
+      --r: 14px;
+      --shadow: 0 10px 22px rgba(74, 62, 32, .10);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "LXGW WenKai", "Nunito", -apple-system,
+        "PingFang SC", "Microsoft YaHei", sans-serif;
+      font-size: 16px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, summary {
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      touch-action: manipulation;
+    }
+    :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+    /* ---------- 外壳：移动优先，宽屏居中 ---------- */
+    #app {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 22px 16px calc(30px + var(--safe-b));
+    }
+
+    .head h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: .01em;
+    }
+    .head h1::before {
+      content: "🍊 ";
+      font-size: 20px;
+    }
+    .updated {
+      margin: 2px 0 0;
+      color: var(--ink-2);
+      font-size: 13px;
+    }
+    .legend {
+      margin: 8px 0 16px;
+      font-size: 12.5px;
+      color: var(--ink-2);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 14px;
+    }
+    .legend .dot { vertical-align: middle; }
+    .legend b { font-weight: 700; color: var(--ink); }
+
+    /* ---------- 家庭卡片 ---------- */
+    #cards { display: flex; flex-direction: column; gap: 12px; }
+    .card {
+      background: var(--card);
+      border: 1.5px dashed var(--line);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 12px 14px;
+    }
+    .card summary::-webkit-details-marker { display: none; }
+    .card .top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .card .name { font-size: 19px; font-weight: 700; }
+    .card .code {
+      font-family: "Nunito", sans-serif;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      color: var(--ink-2);
+      background: var(--kraft);
+      border-radius: 6px;
+      padding: 1px 8px;
+    }
+    .card .spacer { flex: 1; }
+    .card .meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      color: var(--ink-2);
+      font-size: 14px;
+    }
+    .card .meta .week { color: var(--accent); font-weight: 700; }
+    .card .arrow {
+      color: var(--ink-2);
+      font-size: 13px;
+      transition: transform .15s ease;
+    }
+    .card[open] .arrow { transform: rotate(180deg); }
+
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex: none;
+    }
+    .dot.red { background: var(--red); }
+    .dot.yellow { background: var(--yellow); }
+
+    /* ---------- 展开：近4周明细 ---------- */
+    .detail {
+      border-top: 1.5px dashed var(--line);
+      background: #FBF5E9;
+      padding: 10px 14px 12px;
+    }
+    .detail-head {
+      margin: 0 0 6px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--ink-2);
+    }
+    .recent-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 3px 0;
+      font-size: 13.5px;
+    }
+    .recent-row.cur { font-weight: 700; }
+    .recent-week { width: 48px; flex: none; color: var(--accent); }
+    .recent-range { color: var(--ink-2); flex: 1; font-family: "Nunito", sans-serif; font-size: 12.5px; }
+    .recent-dots { flex: none; letter-spacing: 3px; color: var(--accent); font-size: 11px; }
+    .recent-dots .off { color: #D9CDB2; }
+    .recent-count { width: 34px; flex: none; text-align: right; font-family: "Nunito", sans-serif; font-weight: 800; }
+
+    /* ---------- 空态 / 无权限 / 加载失败 ---------- */
+    .empty, .denied {
+      margin-top: 40px;
+      text-align: center;
+      color: var(--ink-2);
+    }
+    .denied { font-size: 20px; color: var(--ink); }
+    #retry {
+      display: block;
+      margin: 14px auto 0;
+      padding: 8px 22px;
+      font: inherit;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+    }
+
+    /* ---------- 宽屏两列 ---------- */
+    @media (min-width: 760px) {
+      #app { max-width: 900px; }
+      #cards { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="head">
+      <h1>Mei启蒙·教师端</h1>
+      <p class="updated">数据更新时间：<span id="updated-at">—</span></p>
+      <p class="legend">
+        <span><span class="dot red"></span> <b>红</b>＝8天以上没打卡或从未打卡</span>
+        <span><span class="dot yellow"></span> <b>黄</b>＝3~7天没打卡</span>
+        <span>点卡片看近4周明细</span>
+      </p>
+    </header>
+    <div id="cards"></div>
+  </div>
+  <script src="dash-logic.js"></script>
+  <script>
+  (function () {
+    "use strict";
+    // 教师端启动：?t=<老师码> 与 families.json 的 teacherCode 比对，
+    // 不匹配只显示「无权限」。静态站能做的只是模糊级门禁，不假装安全。
+    // 数据只展示：小名/家庭码/第几周/本周打卡/上次打卡/红黄标记/近4周——
+    // 注册表里的 age、套餐、加入时间等一律不显示、不落盘（不碰 localStorage）。
+    var t = new URLSearchParams(location.search).get("t");
+    var TIMER = 5 * 60 * 1000; // 每 5 分钟自动刷新
+    var lastUpdated = null;
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, function (ch) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+      });
+    }
+    function fmtTime(d) {
+      var p = function (n) { return String(n).padStart(2, "0"); };
+      return p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+    }
+    // 网络优先 + ?ts= 破缓存；不注册 SW、不走 caches，本页不缓存数据
+    function fetchJson(url) {
+      return fetch(url + "?ts=" + Date.now(), { cache: "no-store" }).then(function (r) {
+        if (!r.ok) throw new Error("load failed: " + url);
+        return r.json();
+      });
+    }
+
+    function cardHtml(row) {
+      var dot = row.flag === "red" ? '<span class="dot red"></span>'
+        : row.flag === "yellow" ? '<span class="dot yellow"></span>' : "";
+      var recent = row.recent.map(function (w) {
+        var filled = Math.min(w.count, 4);
+        var dots = "";
+        for (var i = 1; i <= 4; i++) {
+          dots += i <= filled ? "●" : '<span class="off">○</span>';
+        }
+        return '<div class="recent-row' + (w.week === row.week ? " cur" : "") + '">' +
+          '<span class="recent-week">第' + w.week + '周</span>' +
+          '<span class="recent-range">' + esc(w.start.slice(5)) + ' ~ ' + esc(w.end.slice(5)) + '</span>' +
+          '<span class="recent-dots">' + dots + '</span>' +
+          '<span class="recent-count">' + w.count + '/4</span></div>';
+      }).join("");
+      return '<details class="card"><summary>' +
+        '<span class="top">' +
+          '<span class="name">' + esc(row.childName || "?") + '</span>' +
+          '<span class="code">' + esc(row.code) + '</span>' +
+          '<span class="spacer"></span>' + dot +
+          '<span class="arrow">▾</span>' +
+        '</span>' +
+        '<span class="meta">' +
+          '<span class="week">第' + (row.week == null ? "—" : row.week) + '周</span>' +
+          '<span>本周 ' + row.weekCount + '/4</span>' +
+          '<span>上次 ' + (row.lastCheckin ? esc(row.lastCheckin.slice(5)) : "从未") + '</span>' +
+        '</span>' +
+      '</summary>' +
+      '<div class="detail"><p class="detail-head">近4周打卡明细</p>' + recent + '</div>' +
+      '</details>';
+    }
+
+    function render(registry, checkins) {
+      var rows = DashboardLogic.buildRows(registry, checkins, new Date());
+      var html = rows.length ? rows.map(cardHtml).join("")
+        : '<div class="empty">还没有家庭——用 tools/make-family.js 加家庭后就能在这里看到进度。</div>';
+      document.getElementById("cards").innerHTML = html;
+      lastUpdated = new Date();
+      document.getElementById("updated-at").textContent = fmtTime(lastUpdated);
+    }
+
+    function deny() {
+      document.getElementById("cards").innerHTML = '<div class="denied">无权限</div>';
+      document.getElementById("updated-at").textContent = "—";
+    }
+
+    function showLoadError() {
+      document.getElementById("cards").innerHTML =
+        '<div class="empty">加载失败，请检查网络</div>' +
+        '<button type="button" id="retry">重试</button>';
+      document.getElementById("retry").addEventListener("click", function () { location.reload(); });
+    }
+
+    function refresh() {
+      return fetchJson("families.json").then(function (registry) {
+        if (t !== registry.teacherCode) { deny(); return; }
+        return fetchJson("checkins.json").then(function (checkins) {
+          render(registry, checkins);
+        });
+      });
+    }
+
+    refresh().then(function () {
+      setInterval(function () {
+        refresh().catch(function () {
+          document.getElementById("updated-at").textContent =
+            (lastUpdated ? fmtTime(lastUpdated) : "—") + "（刷新失败，5 分钟后自动重试）";
+        });
+      }, TIMER);
+    }).catch(showLoadError);
+  })();
+  </script>
+</body>
+</html>
