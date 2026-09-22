@@ -1,0 +1,23 @@
+{
+  "childName": "谦灵",
+  "startDate": "2026-09-22",
+  "overrides": {
+    "1": {
+      "extraWords": [
+        {
+          "en": "car",
+          "zh": "汽车"
+        },
+        {
+          "en": "bus",
+          "zh": "公交车"
+        },
+        {
+          "en": "dinosaur",
+          "zh": "恐龙"
+        }
+      ],
+      "note": "恐龙歌：《Dinosaur Stomp》适合当热身歌，边跺脚边唱"
+    }
+  }
+}
