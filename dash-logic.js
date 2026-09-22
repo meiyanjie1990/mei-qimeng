@@ -41,12 +41,12 @@
     return { start: fmtDate(start), end: fmtDate(end) };
   }
 
-  // 红黄标记：距上次打卡 ≥8 天红（含从未打卡），3~7 天黄，0~2 天无标记。
-  // 7 天整 = 黄（按 brief 测试约定，非 ≥7 红）。
+  // 红黄标记（对齐启动方案第五节规格：3天没打卡标黄，一周没打卡标红）：
+  // 距上次打卡 ≥7 天红（含第7天、从未打卡），3~6 天黄，0~2 天无标记。
   DashboardLogic.flags = function (lastCheckinDate, today) {
     if (!lastCheckinDate) return "red";
     const d = Math.floor((today - parseDate(lastCheckinDate)) / DAY);
-    if (d >= 8) return "red";
+    if (d >= 7) return "red";
     if (d >= 3) return "yellow";
     return null;
   };

@@ -5,7 +5,9 @@ const D = require("../dash-logic.js"); // teacher.html 内联逻辑抽出的 UMD
 
 test("flags 按距上次打卡天数标红黄", () => {
   const today = new Date("2026-11-02T12:00:00");
-  assert.equal(D.flags("2026-10-26", today), "yellow"); // 7天整
+  assert.equal(D.flags("2026-10-26", today), "red");   // 7天整：一周没打卡 → 红（对齐启动方案规格）
+  assert.equal(D.flags("2026-10-27", today), "yellow"); // 6天 → 黄
+  assert.equal(D.flags("2026-10-25", today), "red");    // 8天 → 红
   assert.equal(D.flags("2026-10-20", today), "red");
   assert.equal(D.flags("2026-11-01", today), null);
   assert.equal(D.flags(null, today), "red"); // 从未打卡
