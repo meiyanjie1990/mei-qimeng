@@ -478,6 +478,27 @@
       background: var(--green-deep);
     }
 
+    /* ---------- 复制打卡：描边浅色小按钮，点一下复制群打卡文案 ---------- */
+    .btn-copy {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      margin-top: 12px;
+      min-height: 48px;
+      padding: 10px 18px;
+      border: 1.5px solid var(--green);
+      border-radius: var(--r-pill);
+      background: var(--paper);
+      color: var(--green-deep);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: .02em;
+      cursor: pointer;
+      transition: background-color .15s ease, transform .12s ease;
+    }
+    .btn-copy:active { transform: scale(.97); background: var(--green-soft); }
+
     /* ---------- 整周打卡键（本周页用：描边胶囊，与当天页的实心键区分开） ---------- */
     .btn-week {
       display: flex;
@@ -668,8 +689,10 @@
       var updating = false;
 
       // 彻底清掉旧缓存再刷新：一定要等清理真的做完再 reload，
-      // 否则刷新会又被旧缓存接住，表现就是「点了没反应、要点好几次」
-      function clearAndReload() {
+      // 否则刷新会又被旧缓存接住，表现就是「点了没反应、要点好几次」。
+      // 版本号只在清理成功后才记录——清理失败就复位徽标让用户再点，
+      // 不能出现「本地记了新版本、壳还是旧的」这种永远弹不出徽标的死局。
+      function clearAndReload(version) {
         var steps = Promise.resolve();
         if (navigator.serviceWorker) {
           steps = steps.then(function () {
@@ -685,8 +708,13 @@
             });
           });
         }
-        var go = function () { location.reload(); };
-        steps.then(go, go);
+        steps.then(function () {
+          localStorage.setItem(Logic.APP_VERSION_KEY, version);
+          location.reload();
+        }, function () {
+          updating = false;
+          badge.textContent = "更新失败，再点一次";
+        });
       }
 
       fetch("version.json?ts=" + Date.now()).then(function (r) { return r.json(); })
@@ -701,8 +729,7 @@
               if (updating) return;              // 连点只算一次
               updating = true;
               badge.textContent = "正在更新…";
-              localStorage.setItem(Logic.APP_VERSION_KEY, String(v.version));
-              clearAndReload();
+              clearAndReload(String(v.version));
             });
           } else {
             localStorage.setItem(Logic.APP_VERSION_KEY, String(v.version));

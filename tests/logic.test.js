@@ -100,3 +100,8 @@ test("parseFamilyCode 从链接取家庭码，无码或小写也能处理", () =
   assert.equal(Logic.parseFamilyCode(), "K3F8QA");
   delete global.location;
 });
+
+test("buildCheckinText 生成群打卡文案（复制打卡按钮用）", () => {
+  assert.equal(Logic.buildCheckinText("豆豆", 3, 2), "「豆豆」第3周·第2天打卡✅");
+  assert.equal(Logic.buildCheckinText(null, 1, 4), "「宝宝」第1周·第4天打卡✅");
+});

@@ -153,12 +153,15 @@
         '<button class="btn-checkin' + (done ? " is-done" : "") +
         '" data-action="toggle-checkin" data-day="' + day.day + '">' +
         (done ? '✅ 已完成 · 点一下取消' : '✅ 今天完成啦') + '</button>';
+      // 复制打卡（群打卡用）：复制「豆豆」第N周·第M天打卡✅，粘到微信群里
+      var copyBtn = day.rest ? "" :
+        '<button class="btn-copy" data-action="copy-checkin" data-day="' + day.day + '">📋 复制打卡</button>';
       html = '<header class="day-head">' +
         '<div class="top"><button class="back" data-action="go-back">← 返回</button>' +
         '<h1>第' + day.day + '天 · ' + escapeHtml(day.title) + '</h1></div>' +
         '<p class="sub">第' + week.week + '周 · ' + escapeHtml(week.theme) +
         ' · ' + escapeHtml(formatRange(state.range)) + '</p></header>' +
-        blocks + remember + checkin;
+        blocks + remember + checkin + copyBtn;
     }
     var el = document.getElementById("view-day");
     if (el) el.innerHTML = html;
@@ -197,6 +200,25 @@
     if (el) el.innerHTML = '<div class="empty"><p>' + escapeHtml(String(msg)) + '</p>' +
       '<button type="button" onclick="location.reload()">重试</button></div>';
   };
+
+  // 复制到剪贴板：优先现代 API（https 下可用），老浏览器回退 textarea+execCommand
+  function copyToClipboard(text) {
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(fallback);
+    } else {
+      fallback();
+    }
+  }
 
   // 组装买家版 App：三视图 + 打卡交互 + 手机返回键历史（同谦灵App 的做法）
   Ui.initApp = function (content, opts) {
@@ -289,6 +311,12 @@
         goBack();
       } else if (action === "goto-week") {
         setWeek(Number(el.getAttribute("data-week"))); navigate("week");
+      } else if (action === "copy-checkin") {
+        var text = Logic.buildCheckinText(
+          state.content.childName, state.week, Number(el.getAttribute("data-day")));
+        copyToClipboard(text);
+        el.textContent = "已复制 ✓";
+        setTimeout(function () { render(); }, 900); // 按钮文案复位
       }
     });
     // 起点：把当前这条历史记录标成本周页（depth 0 —— 返回键在这一页才会退出 App）

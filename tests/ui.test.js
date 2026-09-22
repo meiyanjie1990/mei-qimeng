@@ -150,7 +150,9 @@ test("地图格：整周替换的定制周缺 themeEn 不渲染 undefined", () =
 
 // 用真实 base/content.json 全量回归（参照谦灵App ui.test.js 的写法）：
 // 每个细化周的地图格都得渲染出来、可点、带自家 range 起始日。
+// 自己搭 document 桩——不依赖前一个测试留下的全局 document（单跑也要能过）。
 test("content.json 里每个细化周的地图格都能渲染", () => {
+  documentStub();
   const startDate = "2026-10-05";
   const html = Ui.renderMapPage(buyerContent(), { startDate: startDate });
   const detailed = content.weeks.filter(w => w.detailed);
@@ -185,4 +187,30 @@ test("initApp 点击接线：toggle-week 活动日全勾后再点清空；无 de
   Ui.initApp(buyerContent(), { code: "K3F8QA", startDate: "2026-10-05", week: 25, range: RANGE });
   app2.click(actionEl("toggle-week"));
   assert.equal(app2.store["mei-checkins-K3F8QA"], undefined);
+});
+
+// 复制打卡按钮：点一下把「娃名·第N周·第M天打卡✅」写进剪贴板（群打卡用）。
+// Node 的 navigator 是只读的 mock 不掉，走 textarea+execCommand 兜底路径验证。
+test("initApp 点击接线：copy-checkin 复制群打卡文案", () => {
+  const app = appStub();
+  let copied = null;
+  global.document.createElement = () => ({
+    value: "",
+    style: {},
+    select() { copied = this.value; }
+  });
+  global.document.execCommand = () => true;
+  global.document.body = { appendChild() {}, removeChild() {} };
+  Ui.initApp(buyerContent(), { code: "K3F8QA", startDate: "2026-10-05", week: 2, range: RANGE });
+  app.click(actionEl("copy-checkin", 2));
+  assert.equal(copied, "「豆豆」第2周·第2天打卡✅");
+});
+
+test("当天页活动日有「复制打卡」按钮，休息日没有", () => {
+  documentStub();
+  const base = { week: 2, range: RANGE, checkins: {} };
+  Ui.renderDayPage(buyerContent(), Object.assign({}, base, { day: 1 }));
+  assert.ok(global.document.getElementById("view-day").innerHTML.includes("data-action=\"copy-checkin\""));
+  Ui.renderDayPage(buyerContent(), Object.assign({}, base, { day: 3 }));
+  assert.ok(!global.document.getElementById("view-day").innerHTML.includes("copy-checkin"));
 });

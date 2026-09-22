@@ -47,6 +47,22 @@ test("customWeeks 校验：coreWords/coreSentences 必须是数组", () => {
   assert.throws(() => M.buildOverlay(badSentences), /customWeeks\["2"\]\.coreSentences 必须是数组/);
 });
 
+test("customWeeks 校验：键与内部 week 不一致会替换错周，必须报错（T7 评审补）", () => {
+  const M = require("../tools/make-family.js");
+  const mismatch = { childName: "小满", customWeeks: { "1": { week: 2, theme: "颜色", coreWords: [], coreSentences: ["Red!"], detailed: true } } };
+  assert.throws(() => M.buildOverlay(mismatch), /week 字段（2）与键不一致/);
+});
+
+test("startWeek 必须是 1-48 的整数，否则报错（T7 评审补）", () => {
+  const M = require("../tools/make-family.js");
+  assert.throws(() => M.buildOverlay({ childName: "豆豆", startWeek: "abc" }), /startWeek 必须是 1-48 的整数/);
+  assert.throws(() => M.buildOverlay({ childName: "豆豆", startWeek: 0 }), /startWeek 必须是 1-48 的整数/);
+  assert.throws(() => M.buildOverlay({ childName: "豆豆", startWeek: 49 }), /startWeek 必须是 1-48 的整数/);
+  // 合法值不受影响
+  const ok = M.buildOverlay({ childName: "豆豆", startWeek: 5, interests: ["车"] });
+  assert.deepEqual(ok.overrides["5"].extraWords, [{ en: "car", zh: "汽车" }, { en: "bus", zh: "公交车" }]);
+});
+
 // —— 控制器裁定 4：注册表条目带 age，旧问卷无 age 则不写该字段 ——
 
 test("buildRegistryEntry 有 age 写 age，无 age 不写（兼容旧问卷）", () => {

@@ -91,6 +91,7 @@
       return {
         code: code,
         childName: f.childName,
+        age: f.age, // 旧注册表可能没有，teacher.html 有值才显示
         startDate: startDate,
         week: week,
         weekCount: (famCheckins[String(week)] || []).length,

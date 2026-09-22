@@ -10,7 +10,7 @@
       if (r.ok) return await r.json();
     } catch (e) {}
     // 与 sw.js 的 CACHE_NAME 保持同一名字（改了 sw.js 这里也要跟着改）
-    const c = await caches.open("mei-qimeng-v2");
+    const c = await caches.open("mei-qimeng-v3");
     const cached = await c.match("base/content.json");
     if (cached) return await cached.json();
     throw new Error("content unavailable");
@@ -86,6 +86,11 @@
   // 「点我更新」徽标：本地记住见过的 version.json 版本，远端变大一弹徽标（照谦灵App）
   const APP_VERSION_KEY = "mei-qimeng-version";
 
+  // 群打卡文案：复制按钮用——「豆豆」第3周·第2天打卡✅，粘到微信群即可
+  Logic.buildCheckinText = function (childName, week, day) {
+    return "「" + (childName || "宝宝") + "」第" + week + "周·第" + day + "天打卡✅";
+  };
+
   Logic.loadLocalCheckins = function (code) {
     const raw = localStorage.getItem(checkinsKey(code));
     if (!raw) return {};
@@ -150,14 +155,14 @@
         const d = await r.json();
         const data = d.content ? JSON.parse(b64Decode(d.content)) : { families: {} };
         try {
-          const c = await caches.open("mei-qimeng-v2");
+          const c = await caches.open("mei-qimeng-v3");
           await c.put("checkins.json", JSON.stringify(data)); // 断网时兜底用
         } catch (e) {}
         return data;
       }
     } catch (e) {}
     try {
-      const c = await caches.open("mei-qimeng-v2");
+      const c = await caches.open("mei-qimeng-v3");
       const cached = await c.match("checkins.json");
       if (cached) return await cached.json();
     } catch (e) {}

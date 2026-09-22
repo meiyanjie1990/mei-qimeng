@@ -250,6 +250,7 @@
       return '<details class="card"><summary>' +
         '<span class="top">' +
           '<span class="name">' + esc(row.childName || "?") + '</span>' +
+          (row.age !== undefined && row.age !== null ? '<span class="age">' + esc(String(row.age)) + '岁</span>' : '') +
           '<span class="code">' + esc(row.code) + '</span>' +
           '<span class="spacer"></span>' + dot +
           '<span class="arrow">▾</span>' +
@@ -285,9 +286,11 @@
       document.getElementById("retry").addEventListener("click", function () { location.reload(); });
     }
 
+    var authorized = false;
     function refresh() {
       return fetchJson("families.json").then(function (registry) {
-        if (t !== registry.teacherCode) { deny(); return; }
+        if (t !== registry.teacherCode) { authorized = false; deny(); return; }
+        authorized = true;
         return fetchJson("checkins.json").then(function (checkins) {
           render(registry, checkins);
         });
@@ -295,6 +298,7 @@
     }
 
     refresh().then(function () {
+      if (!authorized) return; // 无权限页不用轮询
       setInterval(function () {
         refresh().catch(function () {
           document.getElementById("updated-at").textContent =

@@ -37,6 +37,10 @@ function validateCustomWeek(w, key) {
   });
   if (!Array.isArray(w.coreWords)) throw new Error('customWeeks["' + key + '"].coreWords 必须是数组');
   if (!Array.isArray(w.coreSentences)) throw new Error('customWeeks["' + key + '"].coreSentences 必须是数组');
+  // 键与内部 week 必须一致：mergeContent 按对象键替换，不一致会静默换错周
+  if (String(w.week) !== key) {
+    throw new Error('customWeeks["' + key + '"] 的 week 字段（' + w.week + '）与键不一致，会替换错周');
+  }
 }
 
 // 纯函数：问卷 → 覆盖层对象（不碰文件系统，CLI 负责读写）
@@ -46,6 +50,12 @@ function buildOverlay(q) {
   const overlay = { childName: q.childName };
   if (q.startDate) overlay.startDate = q.startDate;
 
+  if (q.startWeek !== undefined && q.startWeek !== null) {
+    const n = Number(q.startWeek);
+    if (!Number.isInteger(n) || n < 1 || n > 48) {
+      throw new Error("startWeek 必须是 1-48 的整数，收到：" + q.startWeek);
+    }
+  }
   const key = String(q.startWeek || 1);
   const extraWords = [];
   const notes = [];
