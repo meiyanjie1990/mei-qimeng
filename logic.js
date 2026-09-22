@@ -121,5 +121,91 @@
     return checkins;
   };
 
+  // ---------- 打卡云同步（GitHub Contents API，参照五人打卡） ----------
+  const REMOTE_URL = "https://api.github.com/repos/meiyanjie1990/mei-qimeng/contents/";
+
+  // token 只在浏览器里读 CI 注入的 config.js（gitignored，永不提交）；
+  // Node 测试环境没有 window，返回空串——测试全程 mock fetch，不需要真 token。
+  function syncToken() {
+    return (typeof window !== "undefined" && window.CONFIG && window.CONFIG.GITHUB_TOKEN) || "";
+  }
+
+  // 中文安全 base64：直接 btoa 会因 UTF-8 多字节字符乱码，
+  // 先 encodeURIComponent 转成 %XX ASCII 再 btoa，解码反向（照五人打卡的做法）。
+  function b64Encode(s) { return btoa(unescape(encodeURIComponent(s))); }
+  function b64Decode(b64) { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))); }
+
+  // 远端 checkins.json → { families: { 家庭码: { checkins } } }
+  // 网络优先，失败走缓存兜底，再失败返回空结构（本地打卡不受影响）。
+  Logic.fetchRemoteCheckins = async function () {
+    try {
+      const r = await fetch(REMOTE_URL + "checkins.json?ts=" + Date.now(), { cache: "no-store" });
+      if (r.ok) {
+        const d = await r.json();
+        const data = d.content ? JSON.parse(b64Decode(d.content)) : { families: {} };
+        try {
+          const c = await caches.open("mei-qimeng-v1");
+          await c.put("checkins.json", JSON.stringify(data)); // 断网时兜底用
+        } catch (e) {}
+        return data;
+      }
+    } catch (e) {}
+    try {
+      const c = await caches.open("mei-qimeng-v1");
+      const cached = await c.match("checkins.json");
+      if (cached) return await cached.json();
+    } catch (e) {}
+    return { families: {} };
+  };
+
+  // 启动合并：远端有而本地没碰过的周回填进本地；本地已碰过的周一律本地为准
+  // （含空数组 = 主动取消过，不被远端旧数据复活）。合并结果写回 localStorage。
+  Logic.mergeRemoteCheckins = function (code, remote) {
+    const local = Logic.loadLocalCheckins(code);
+    const r = (remote && remote.families && remote.families[code] && remote.families[code].checkins) || {};
+    const merged = Object.assign({}, local);
+    Object.keys(r).forEach(function (wk) {
+      if (merged[wk] === undefined) merged[wk] = (r[wk] || []).slice();
+    });
+    saveLocalCheckins(code, merged);
+    return merged;
+  };
+
+  // 上传合并：只替换本家庭 key 的 checkins，其他家庭原样保留（多家庭隔离）。
+  Logic.mergeCheckins = function (remote, code, local) {
+    const families = Object.assign({}, remote.families || {});
+    families[code] = Object.assign({}, families[code], { checkins: local });
+    return { families: families };
+  };
+
+  // 推远端：先读远端拿 SHA，再 PUT；409/422（SHA 不匹配）时重读重合并重试，≤5 次。
+  // 断网等异常返回 false（静默失败，下次打卡自然重试）。
+  Logic.pushCheckins = async function (code, local) {
+    try {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const get = await fetch(REMOTE_URL + "checkins.json?ts=" + Date.now());
+        let sha = null, remote = { families: {} };
+        if (get.ok) {
+          const d = await get.json();
+          sha = d.sha;
+          if (d.content) remote = JSON.parse(b64Decode(d.content));
+        }
+        const merged = Logic.mergeCheckins(remote, code, local);
+        const put = await fetch(REMOTE_URL + "checkins.json", {
+          method: "PUT",
+          headers: { "Authorization": "token " + syncToken(), "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: "checkin " + code,
+            content: b64Encode(JSON.stringify(merged)),
+            sha: sha
+          })
+        });
+        if (put.ok) return true;
+        if (put.status !== 409 && put.status !== 422) return false;
+      }
+      return false;
+    } catch (e) { return false; }
+  };
+
   return Logic;
 });

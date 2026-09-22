@@ -363,6 +363,23 @@
     }
     #update-badge:active { transform: scale(.96); }
 
+    /* ---------- 云同步状态行：右上角小标签，没内容时不占位 ---------- */
+    #sync-status {
+      position: fixed;
+      top: calc(10px + env(safe-area-inset-top, 0px));
+      right: 12px;
+      z-index: 50;
+      font-size: 11.5px;
+      line-height: 1.6;
+      color: var(--ink-2);
+      background: rgba(255, 253, 244, .9);
+      border: 1px dashed var(--stitch);
+      border-radius: var(--r-pill);
+      padding: 2px 10px;
+      pointer-events: none;
+    }
+    #sync-status:empty { display: none; }
+
     /* ---------- 当天页：返回键和标题并排一行 ---------- */
     .day-head .top {
       display: flex; align-items: center; gap: 8px;
@@ -577,6 +594,7 @@
     <div id="view-day" class="view" hidden></div>
     <div id="view-map" class="view" hidden></div>
   </div>
+  <div id="sync-status"></div>
   <button type="button" id="update-badge" hidden>点我更新</button>
   <script src="logic.js"></script>
   <script src="ui.js"></script>
@@ -591,6 +609,23 @@
         Ui.showError("请用老师发来的链接打开（链接里带家庭码）");
         return;
       }
+      // 云同步状态行（右上角小标签）：已同步 = 本地打卡都推上去了；待同步 = 上次推送失败
+      function setSyncStatus(text) {
+        var el = document.getElementById("sync-status");
+        if (el) el.textContent = text;
+      }
+      // 打卡后自动推远端：ui.js 里所有打卡都经 Logic.toggleDay / toggleWeek，
+      // 这里包一层，打卡后异步推（pushCheckins 自带 SHA 冲突重试；失败静默，下次打卡再试）
+      (function () {
+        var tDay = Logic.toggleDay, tWeek = Logic.toggleWeek;
+        function afterToggle() {
+          Logic.pushCheckins(code, Logic.loadLocalCheckins(code))
+            .then(function (ok) { setSyncStatus(ok ? "已同步" : "待同步"); })
+            .catch(function () { setSyncStatus("待同步"); });
+        }
+        Logic.toggleDay = function (c, w, d) { var s = tDay(c, w, d); afterToggle(); return s; };
+        Logic.toggleWeek = function (c, w, det) { var s = tWeek(c, w, det); afterToggle(); return s; };
+      })();
       Promise.all([Logic.loadRegistry(), Logic.loadOverlay(code), Logic.loadBase()])
         .then(function (rs) {
           var overlay = rs[1], base = rs[2];
@@ -598,7 +633,14 @@
           var content = Logic.mergeContent(base, overlay);
           var week = Logic.currentWeekNumber(overlay.startDate, new Date());
           var range = Logic.weekDateRange(overlay.startDate, week);
-          Ui.initApp(content, { code: code, startDate: overlay.startDate, week: week, range: range });
+          // 启动同步：先拉远端打卡合并进本地（网络失败走缓存兜底，绝不阻塞渲染）
+          return Logic.fetchRemoteCheckins()
+            .then(function (remote) { Logic.mergeRemoteCheckins(code, remote); })
+            .catch(function () {})
+            .then(function () {
+              setSyncStatus("已同步");
+              Ui.initApp(content, { code: code, startDate: overlay.startDate, week: week, range: range });
+            });
         })
         .catch(function () { Ui.showError("加载失败，请联网后重试"); });
     })();
