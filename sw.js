@@ -1,4 +1,4 @@
-var CACHE_NAME = "mei-qimeng-v1";
+var CACHE_NAME = "mei-qimeng-v2";
 var PRECACHE = [
   "./", "index.html", "logic.js", "ui.js", "base/content.json",
   "manifest.json", "version.json", "fonts/fonts.css",

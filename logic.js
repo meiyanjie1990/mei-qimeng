@@ -9,7 +9,8 @@
       const r = await fetch("base/content.json?ts=" + Date.now(), { cache: "no-store" });
       if (r.ok) return await r.json();
     } catch (e) {}
-    const c = await caches.open("mei-qimeng-v1");
+    // 与 sw.js 的 CACHE_NAME 保持同一名字（改了 sw.js 这里也要跟着改）
+    const c = await caches.open("mei-qimeng-v2");
     const cached = await c.match("base/content.json");
     if (cached) return await cached.json();
     throw new Error("content unavailable");
@@ -82,6 +83,9 @@
     return "mei-checkins-" + code;
   }
 
+  // 「点我更新」徽标：本地记住见过的 version.json 版本，远端变大一弹徽标（照谦灵App）
+  const APP_VERSION_KEY = "mei-qimeng-version";
+
   Logic.loadLocalCheckins = function (code) {
     const raw = localStorage.getItem(checkinsKey(code));
     if (!raw) return {};
@@ -102,6 +106,8 @@
     saveLocalCheckins(code, checkins);
     return checkins;
   };
+
+  Logic.APP_VERSION_KEY = APP_VERSION_KEY;
 
   Logic.activityDays = function (weekDetails) {
     const days = (weekDetails && weekDetails.days) || [];
@@ -144,14 +150,14 @@
         const d = await r.json();
         const data = d.content ? JSON.parse(b64Decode(d.content)) : { families: {} };
         try {
-          const c = await caches.open("mei-qimeng-v1");
+          const c = await caches.open("mei-qimeng-v2");
           await c.put("checkins.json", JSON.stringify(data)); // 断网时兜底用
         } catch (e) {}
         return data;
       }
     } catch (e) {}
     try {
-      const c = await caches.open("mei-qimeng-v1");
+      const c = await caches.open("mei-qimeng-v2");
       const cached = await c.match("checkins.json");
       if (cached) return await cached.json();
     } catch (e) {}

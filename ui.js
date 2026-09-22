@@ -165,13 +165,17 @@
     return html;
   };
 
-  // 全年地图：细化周可点，未细化周灰化
-  Ui.renderMapPage = function (content) {
+  // 全年地图：细化周可点，未细化周灰化；周格子文案「第N周」+ 自家 range 起始日
+  // （起始日按家庭起始日现算，绝不显示 content 里谦灵课表的固定日期）。
+  Ui.renderMapPage = function (content, state) {
+    state = state || {};
     var cells = content.weeks.map(function (w) {
+      var start = state.startDate ? Logic.weekDateRange(state.startDate, w.week).start : "";
       var inner = '<span class="map-week">第' + w.week + '周</span>' +
         '<span class="map-emoji">' + escapeHtml(w.emoji) + '</span>' +
         '<span class="map-theme">' + escapeHtml(w.theme) +
-        ' <span class="map-en">' + escapeHtml(w.themeEn) + '</span></span>';
+        ' <span class="map-en">' + escapeHtml(w.themeEn || "") + '</span></span>' +
+        (start ? '<span class="map-date">' + escapeHtml(start) + ' 起</span>' : "");
       if (w.detailed) {
         return '<button class="map-cell detailed" data-action="goto-week" data-week="' + w.week + '">' +
           inner + '</button>';
@@ -180,7 +184,7 @@
     }).join("");
     var html = '<header class="day-head">' +
       '<div class="top"><button class="back" data-action="go-back">← 返回</button>' +
-      '<h1>🗺 全年地图</h1></div>' +
+      '<h1>🗺 ' + escapeHtml(content.childName || "宝宝") + '的启蒙·全年地图</h1></div>' +
       '<p class="sub">' + content.weeks.length + '周 · 全年计划</p></header>' +
       '<div class="map-grid">' + cells + '</div>';
     var el = document.getElementById("view-map");
@@ -202,7 +206,8 @@
       content: content,
       checkins: Logic.loadLocalCheckins(code),
       week: opts.week,
-      range: opts.range || Logic.weekDateRange(startDate, opts.week)
+      range: opts.range || Logic.weekDateRange(startDate, opts.week),
+      startDate: startDate
     };
     var views = {
       week: document.getElementById("view-week"),
@@ -222,7 +227,7 @@
       if (current.view === "day") {
         Ui.renderDayPage(state.content, { week: state.week, day: current.day, range: state.range, checkins: state.checkins });
       } else if (current.view === "map") {
-        Ui.renderMapPage(state.content);
+        Ui.renderMapPage(state.content, state);
       } else {
         Ui.renderWeekPage(state.content, { week: state.week, range: state.range, checkins: state.checkins });
       }

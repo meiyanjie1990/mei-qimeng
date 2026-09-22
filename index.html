@@ -577,6 +577,21 @@
       color: rgba(60, 70, 62, .55);
     }
     .map-cell.detailed .map-en { color: var(--ink-2); }
+
+    /* 自家 range 起始日：牛皮纸小标签，空位周灰字 */
+    .map-date {
+      margin-top: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      letter-spacing: .02em;
+      line-height: 1.4;
+      padding: 2px 9px;
+      border-radius: var(--r-pill);
+      background: rgba(255, 253, 244, .8);
+      color: rgba(60, 70, 62, .55);
+      white-space: nowrap;
+    }
+    .map-cell.detailed .map-date { color: var(--kraft-text); }
     .map-tag {
       margin-top: 6px;
       padding: 2px 9px;
@@ -643,6 +658,56 @@
             });
         })
         .catch(function () { Ui.showError("加载失败，请联网后重试"); });
+    })();
+  </script>
+  <script>
+    // 「点我更新」徽标（照谦灵App）：version.json 变大 → 弹徽标 → 点掉 = 记版本 + 清缓存 + reload。
+    // 徽标必须一直挂到点掉为止，不能自隐——SW 更新到一半时用户得有个兜底入口。
+    (function () {
+      var badge = document.getElementById("update-badge");
+      var updating = false;
+
+      // 彻底清掉旧缓存再刷新：一定要等清理真的做完再 reload，
+      // 否则刷新会又被旧缓存接住，表现就是「点了没反应、要点好几次」
+      function clearAndReload() {
+        var steps = Promise.resolve();
+        if (navigator.serviceWorker) {
+          steps = steps.then(function () {
+            return navigator.serviceWorker.getRegistrations().then(function (regs) {
+              return Promise.all(regs.map(function (reg) { return reg.unregister(); }));
+            });
+          });
+        }
+        if (window.caches) {
+          steps = steps.then(function () {
+            return caches.keys().then(function (keys) {
+              return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+            });
+          });
+        }
+        var go = function () { location.reload(); };
+        steps.then(go, go);
+      }
+
+      fetch("version.json?ts=" + Date.now()).then(function (r) { return r.json(); })
+        .then(function (v) {
+          var curRaw = localStorage.getItem(Logic.APP_VERSION_KEY);
+          if (curRaw === null) {
+            // 首装：只记录版本，不弹徽标（否则一点徽标就清掉刚预缓存的壳文件，破坏离线）
+            localStorage.setItem(Logic.APP_VERSION_KEY, String(v.version));
+          } else if (v.version > Number(curRaw)) {
+            badge.hidden = false;
+            badge.addEventListener("click", function () {
+              if (updating) return;              // 连点只算一次
+              updating = true;
+              badge.textContent = "正在更新…";
+              localStorage.setItem(Logic.APP_VERSION_KEY, String(v.version));
+              clearAndReload();
+            });
+          } else {
+            localStorage.setItem(Logic.APP_VERSION_KEY, String(v.version));
+          }
+        }).catch(function () {});
     })();
   </script>
 </body>
