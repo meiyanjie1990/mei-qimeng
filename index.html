@@ -585,8 +585,23 @@
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("sw.js").catch(function () {});
       }
+      var code = Logic.parseFamilyCode();
+      if (!code) {
+        // 无家庭码：先渲染占位（保持 Task 1 行为）
+        Logic.loadBase().then(c => Ui.renderWeekPage(c, {})).catch(e => Ui.showError("加载失败，请联网后重试"));
+        return;
+      }
+      Promise.all([Logic.loadRegistry(), Logic.loadOverlay(code), Logic.loadBase()])
+        .then(function (rs) {
+          var overlay = rs[1], base = rs[2];
+          if (!overlay) { Ui.showError("没有这个家庭码，请和老师确认链接"); return; }
+          var content = Logic.mergeContent(base, overlay);
+          var week = Logic.currentWeekNumber(overlay.startDate, new Date());
+          var range = Logic.weekDateRange(overlay.startDate, week);
+          Ui.renderWeekPage(content, { week: week, range: range });
+        })
+        .catch(function () { Ui.showError("加载失败，请联网后重试"); });
     })();
-    Logic.loadBase().then(c => Ui.renderWeekPage(c, {})).catch(e => Ui.showError("加载失败，请联网后重试"));
   </script>
 </body>
 </html>

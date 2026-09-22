@@ -1,0 +1,2 @@
+// 真实 config.js 由发布工作流注入且已被 gitignore。
+window.CONFIG = { GITHUB_TOKEN: "PLACEHOLDER" };
