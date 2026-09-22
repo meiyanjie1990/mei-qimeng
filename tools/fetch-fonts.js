@@ -1,5 +1,5 @@
 // 字体抓取工具：把 LXGW WenKai（手写体）按需子集下载到 fonts/
-// 只保留 app 实际用到的字符段（content.json + 页面/UI 里的字），
+// 只保留 app 实际用到的字符段（base/content.json + 页面/UI 里的字），
 // 排除 emoji 段（0x2300-0x2E7F 符号、0x1F000 以上），
 // 避免手写字体抢走彩色 emoji 的显示。
 // 用法：node tools/fetch-fonts.js （新增内容出现生僻字后重跑一次）
@@ -41,9 +41,9 @@ function get(url) {
   });
   console.log("总 font-face:", faces.length);
 
-  // 用到的字：content.json + ui.js + index.html + 常用标点
+  // 用到的字：base/content.json + ui.js + index.html + 常用标点
   const seed =
-    fs.readFileSync(path.join(__dirname, "..", "content.json"), "utf8") +
+    fs.readFileSync(path.join(__dirname, "..", "base", "content.json"), "utf8") +
     fs.readFileSync(path.join(__dirname, "..", "ui.js"), "utf8") +
     fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8") +
     "，。：；？！「」（）《》、·—…“”‘’零一二三四五六七八九十";
